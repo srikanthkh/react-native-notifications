@@ -1,5 +1,6 @@
 package com.notificationsexampleapp;
 
+import com.example.notifications.BuildConfig;
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.shell.MainReactPackage;
