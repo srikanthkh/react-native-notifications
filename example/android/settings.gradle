@@ -1,3 +1,6 @@
 rootProject.name = 'NotificationsExampleApp'
 
 include ':app'
+
+include ':react-native-notifications-lib'
+project(':react-native-notifications-lib').projectDir = new File(rootProject.projectDir, '../../android/')
