@@ -167,7 +167,7 @@ RCT_EXPORT_MODULE()
 + (void)didReceiveRemoteNotification:(NSDictionary *)notification
 {
     UIApplicationState state = [UIApplication sharedApplication].applicationState;
-
+    
     if ([RNNotificationsBridgeQueue sharedInstance].jsIsReady == YES) {
         // JS thread is ready, push the notification to the bridge
 
@@ -189,12 +189,16 @@ RCT_EXPORT_MODULE()
 
 + (void)didReceiveLocalNotification:(UILocalNotification *)notification
 {
+    NSLog(@"notification = %@",notification);
+    
     UIApplicationState state = [UIApplication sharedApplication].applicationState;
 
     if (state == UIApplicationStateActive) {
         [self didReceiveNotificationOnForegroundState:notification.userInfo];
     } else if (state == UIApplicationStateInactive) {
         NSString* notificationId = [notification.userInfo objectForKey:@"notificationId"];
+        NSLog(@"notificationId = %@",notificationId);
+        
         if (notificationId) {
             [self clearNotificationFromNotificationsCenter:notificationId];
         }
@@ -228,7 +232,9 @@ RCT_EXPORT_MODULE()
     NSDictionary* alert = [managedAps objectForKey:@"alert"];
     NSString* action = [managedAps objectForKey:@"action"];
     NSString* notificationId = [managedAps objectForKey:@"notificationId"];
-
+    
+    [self overrideCurrentOfferNotificationAlertWithActionValueString:action];
+    
     if (action) {
         // create or delete notification
         if ([action isEqualToString: RNNotificationCreateAction]
@@ -237,10 +243,12 @@ RCT_EXPORT_MODULE()
             [self dispatchLocalNotificationFromNotification:notification];
 
         } else if ([action isEqualToString: RNNotificationClearAction] && notificationId) {
+
             [self clearNotificationFromNotificationsCenter:notificationId];
         }
     }
-
+    
+    //[self didNotificationOpen:userInfo];
     [[NSNotificationCenter defaultCenter] postNotificationName:RNNotificationReceivedBackground
                                                         object:self
                                                       userInfo:notification];
@@ -253,11 +261,30 @@ RCT_EXPORT_MODULE()
                                                       userInfo:notification];
 }
 
+// Additional method:
++ (void)overrideCurrentOfferNotificationAlertWithActionValueString:(NSString *)actionStringValue
+{
+    if([actionStringValue isEqualToString:@"CLEAR"]){
+        // create an empty local notification that will stop the notification sound
+        // and dismiss the alert message / banner
+        UILocalNotification *emptyNotification = [[UILocalNotification alloc] init];
+        emptyNotification.fireDate = [NSDate dateWithTimeIntervalSinceNow:0];
+        emptyNotification.alertBody = @"Call Stopped";
+        emptyNotification.soundName = @"";
+        [[UIApplication sharedApplication] presentLocalNotificationNow:emptyNotification];
+        
+        // clear the call notification
+        [[UIApplication sharedApplication] cancelAllLocalNotifications];
+    }
+}
+
 /*
  * Helper methods
  */
 + (void)dispatchLocalNotificationFromNotification:(NSDictionary *)notification
 {
+    //NSLog(@"dispatchLocalNotificationFromNotification ...");
+    
     NSDictionary* managedAps  = [notification objectForKey:@"managedAps"];
     NSDictionary* alert = [managedAps objectForKey:@"alert"];
     NSString* action = [managedAps objectForKey:@"action"];
@@ -275,7 +302,7 @@ RCT_EXPORT_MODULE()
         note.soundName = [managedAps objectForKey:@"sound"];
         note.category = [managedAps objectForKey:@"category"];
 
-        [[UIApplication sharedApplication] presentLocalNotificationNow:note];
+        //[[UIApplication sharedApplication] presentLocalNotificationNow:note];
 
         // Serialize it and store so we can delete it later
         NSData* data = [NSKeyedArchiver archivedDataWithRootObject:note];
@@ -291,6 +318,7 @@ RCT_EXPORT_MODULE()
 {
     NSString* notificationKey = [self buildNotificationKeyfromNotification:notificationId];
     NSData* data = [[NSUserDefaults standardUserDefaults] objectForKey:notificationKey];
+    
     if (data) {
         UILocalNotification* notification = [NSKeyedUnarchiver unarchiveObjectWithData: data];
 
@@ -325,7 +353,7 @@ RCT_EXPORT_MODULE()
 {
     UIUserNotificationType types = (UIUserNotificationType) (UIUserNotificationTypeBadge | UIUserNotificationTypeSound | UIUserNotificationTypeAlert);
     UIUserNotificationSettings* settings = [UIUserNotificationSettings settingsForTypes:types categories:categories];
-
+    
     [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
 }
 
